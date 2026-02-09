@@ -4,7 +4,6 @@ macOS **Apple 메모(Notes)** 앱과 연동하는 OpenClaw 스킬입니다.
 
 - Apple Notes에 **노트를 생성/조회/수정/삭제/검색**할 수 있습니다.
 - 내부 구현은 `osascript`(AppleScript)를 통해 Notes 앱을 제어하는 **Node.js CLI**입니다.
-- 기존 `mac-reminders-agent`와 비슷한 구조지만, Reminders 대신 Notes를 다룹니다.
 
 ## 파일 구조
 
@@ -116,8 +115,133 @@ node cli.js search --query "MAM RAG" --folder "Jarvis"
 
 - 제목/본문에 키워드를 포함하는 노트를 간단히 검색합니다.
 
-## mac-reminders-agent와의 차이점
+## Notes-specific behavior
 
-- 대상 앱만 **Reminders → Notes**로 바뀜.
-- Notes는 리치 텍스트/HTML 기반이라, 줄바꿈 처리를 위해 내부적으로 `<div><br>` HTML을 생성함.
-- `--bodyFile` 지원으로, 긴 리뷰/문서도 복붙 없이 한 번에 메모로 저장할 수 있도록 설계.
+- Notes는 리치 텍스트/HTML 기반이라, 줄바꿈 처리를 위해 내부적으로 `<div><br>` HTML을 생성합니다.
+- `--bodyFile` 지원으로, 긴 리뷰/문서를 복붙 없이 한 번에 메모로 저장할 수 있도록 설계했습니다.
+
+---
+
+# mac-notes-agent (English)
+
+This is an OpenClaw skill that integrates with the macOS **Apple Notes** app.
+
+- Create / list / read / update / append / delete / search notes in Apple Notes.
+- Implemented as a small **Node.js CLI** that talks to Notes via `osascript` (AppleScript).
+
+## Files
+
+```text
+mac-notes-agent/
+├─ README.md   # this file (Korean + English)
+├─ SKILL.md    # OpenClaw skill metadata + usage
+└─ cli.js      # Node.js CLI, AppleScript bridge
+```
+
+## Requirements
+
+- macOS with the built-in Notes app
+- Node.js (same environment as OpenClaw)
+- `osascript` available on PATH (default on macOS)
+
+No external npm dependencies are required. The CLI only uses Node.js built-ins
+(`child_process`, `fs`).
+
+## Usage
+
+Run commands from this directory:
+
+```bash
+node cli.js <command> [options]
+```
+
+Typical usage from the OpenClaw repo:
+
+```bash
+node skills/mac-notes-agent/cli.js add \
+  --title "Title" \
+  --body "First line\nSecond line" \
+  --folder "Jarvis"
+```
+
+### Core commands
+
+#### 1) Add note (add)
+
+```bash
+# Inline body
+node cli.js add \
+  --title "Meeting notes" \
+  --body "First line\nSecond line\nThird line" \
+  --folder "Jarvis"
+
+# From file (recommended for long text)
+node cli.js add \
+  --title "MAM RAG review" \
+  --bodyFile "./mamrag_review.txt" \
+  --folder "Jarvis"
+```
+
+- `--title` (required): Note title
+- `--folder` (optional): Notes folder name (e.g. "Jarvis"). If omitted, uses the
+  default folder.
+- Exactly one of the following is required:
+  - `--body`     : Inline text; literal `\n` sequences are converted to real
+    line breaks.
+  - `--bodyFile` : UTF-8 text file path; contents become the note body.
+
+The CLI converts line breaks into a minimal HTML representation
+`<div>...<br>...<br>...</div>` so that Apple Notes renders line breaks correctly.
+
+#### 2) List notes (list)
+
+```bash
+node cli.js list --folder "Jarvis"
+```
+
+#### 3) Get note (get)
+
+```bash
+node cli.js get --folder "Jarvis" --title "MAM RAG review"
+```
+
+#### 4) Update note (update)
+
+```bash
+# Replace body from inline text
+node cli.js update \
+  --folder "Jarvis" \
+  --title "MAM RAG review" \
+  --body "New full body"
+
+# Replace body from file
+node cli.js update \
+  --folder "Jarvis" \
+  --title "MAM RAG review" \
+  --bodyFile "./mamrag_review.txt"
+```
+
+#### 5) Append to note (append)
+
+```bash
+node cli.js append \
+  --folder "Jarvis" \
+  --title "MAM RAG review" \
+  --body "\n---\n2026-02-09: additional notes"
+```
+
+#### 6) Delete note (delete)
+
+```bash
+node cli.js delete --folder "Jarvis" --title "MAM RAG review"
+```
+
+#### 7) Search notes (search)
+
+```bash
+node cli.js search --query "MAM RAG" --folder "Jarvis"
+```
+
+This performs a simple text search over titles and bodies. For moderate-sized
+note collections this is sufficient; it is not meant for tens of thousands of
+notes.
