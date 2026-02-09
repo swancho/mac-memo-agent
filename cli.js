@@ -5,7 +5,6 @@
 // Supports: add, list, get, update, append, delete, search
 
 const { execFileSync } = require('child_process');
-const fs = require('fs');
 
 function runOsascript(script) {
   try {
@@ -82,17 +81,9 @@ function scriptEnsureFolderCreate(folderName) {
 
 function commandAdd(args) {
   requireArg(args, 'title');
+  requireArg(args, 'body');
   const title = esc(args.title);
-  // Prefer bodyFile if provided
-  let rawBody = args.body || '';
-  if (args.bodyFile) {
-    try {
-      rawBody = fs.readFileSync(args.bodyFile, 'utf8');
-    } catch (e) {
-      console.error(JSON.stringify({ status: 'error', error: `Failed to read bodyFile: ${e.message}` }));
-      process.exit(1);
-    }
-  }
+  const rawBody = args.body;
   // Interpret literal "\\n" sequences as real newlines, then render as simple HTML
   const normalized = String(rawBody).replace(/\\n/g, '\n');
   const htmlBody = `<div>${normalized.replace(/\r?\n/g, '<br>')}</div>`;
@@ -256,15 +247,7 @@ function commandUpdateOrAppend(args, mode) {
     );
     process.exit(1);
   }
-  if (!args.body && !args.bodyFile) {
-    console.error(
-      JSON.stringify({
-        status: 'error',
-        error: 'Missing required argument --body or --bodyFile',
-      }),
-    );
-    process.exit(1);
-  }
+  requireArg(args, 'body');
 
   let folderName, title;
   if (args.id) {
@@ -276,16 +259,7 @@ function commandUpdateOrAppend(args, mode) {
     title = args.title;
   }
 
-  // Prefer bodyFile if provided
-  let rawBody = args.body || '';
-  if (args.bodyFile) {
-    try {
-      rawBody = fs.readFileSync(args.bodyFile, 'utf8');
-    } catch (e) {
-      console.error(JSON.stringify({ status: 'error', error: `Failed to read bodyFile: ${e.message}` }));
-      process.exit(1);
-    }
-  }
+  const rawBody = args.body;
   // Interpret literal "\\n" sequences as real newlines, then render as simple HTML
   const normalized = String(rawBody).replace(/\\n/g, '\n');
   const newBody = esc(`<div>${normalized.replace(/\r?\n/g, '<br>')}</div>`);
@@ -460,7 +434,7 @@ function main() {
         JSON.stringify({
           status: 'error',
           error:
-            'Usage: node cli.js <add|list|get|update|append|delete|search> [--folder F] [--title T] [--body B] [--id ID]',
+            'Usage: node cli.js <add|list|get|update|append|delete|search> [--folder F] [--title T] [--body B]',
         }),
       );
       process.exit(1);
